@@ -5,7 +5,7 @@
 #define SPONGE_OK 0
 #define SPONGE_WRONG_SIZE 1
 
-typedef void (*sponge_permutator_t)(char *data, size_t size);
+typedef int (*sponge_permutator_t)(char *data, size_t size);
 
 typedef struct sponge_construct {
     size_t bitrate, capacity;

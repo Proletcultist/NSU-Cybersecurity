@@ -29,7 +29,11 @@ int sponge_construct_absorb(sponge_construct_t *sponge, char *data, size_t size)
         sponge->data[i] ^= data[i];
     }
 
-    sponge->permutator(sponge->data, sponge->bitrate + sponge->capacity);
+    int res = sponge->permutator(sponge->data, sponge->bitrate + sponge->capacity);
+
+    if (res != 0) {
+        return ret;
+    }
 
     return SPONGE_OK;
 }
@@ -41,7 +45,11 @@ int sponge_construct_squeeze(sponge_construct_t *sponge, char *buf, size_t size)
 
     memcpy(buf, sponge->data, size);
 
-    sponge->permutator(sponge->data, sponge->bitrate + sponge->capacity);
+    int res = sponge->permutator(sponge->data, sponge->bitrate + sponge->capacity);
+    
+    if (res != 0) {
+        return ret;
+    }
 
     return SPONGE_OK;
 }
