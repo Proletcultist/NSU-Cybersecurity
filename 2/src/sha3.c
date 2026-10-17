@@ -41,6 +41,8 @@ static int sha3_sponge_squeeze(sha3_sponge_t *sponge, char *buf, size_t size);
 static void sha3_sponge_permutate(sha3_sponge_t *sponge);
 
 static inline uint64_t rotl64(uint64_t x, uint64_t n) {
+    n %= 64;
+
     if (n == 0) {
         return x;
     }
@@ -144,7 +146,7 @@ int sha3_256_hashfile(FILE *file, char *out, size_t size) {
         /*capacity*/    512 / 8
     );
     if (res != SHA3_OK) {
-        return res;
+        return SHA3_INTERNAL_FAULT;
     }
 
     // Read full blocks from file
@@ -152,7 +154,7 @@ int sha3_256_hashfile(FILE *file, char *out, size_t size) {
     while (bytes_read == sizeof(buff)) {
         int res = sha3_sponge_absorb(&sponge, buff, bytes_read);      
         if (res != SHA3_OK) {
-            return res;
+            return SHA3_INTERNAL_FAULT;
         }
 
         bytes_read = fread(buff, 1, sizeof(buff), file);
@@ -174,13 +176,13 @@ int sha3_256_hashfile(FILE *file, char *out, size_t size) {
     // Absorb last block
     res = sha3_sponge_absorb(&sponge, buff, bytes_read);      
     if (res != SHA3_OK) {
-        return res;
+        return SHA3_INTERNAL_FAULT;
     }
 
     // Squeeze one block from sponge
     res = sha3_sponge_squeeze(&sponge, buff, sizeof(buff));
     if (res != SHA3_OK) {
-        return res;
+        return SHA3_INTERNAL_FAULT;
     }
 
     // Output first 256 bits

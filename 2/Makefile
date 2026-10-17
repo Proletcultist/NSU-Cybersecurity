@@ -5,7 +5,7 @@ INCLUDE_DIR = include
 DEPS_DIR = $(BUILD_DIR)/deps
 
 CC = clang
-CC_FLAGS = -Wall -Wextra
+CC_FLAGS = -Wall -Wextra -O3
 DEP_FLAGS = -MT $@ -MMD -MF $(DEPS_DIR)/$*.d
 
 SOURCES = main.c sponge.c sha3.c
