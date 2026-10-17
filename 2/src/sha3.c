@@ -7,12 +7,12 @@
 
 #define MODULO(x, n) (((x) % (n) + (n)) % (n))
 
-static const uint64_t rhomatrix[5][5] = {
-    {0, 36, 3, 41, 18},
-    {1, 44, 10, 45, 2},
-    {62, 6, 43, 15, 61},
-    {28, 55, 25, 21, 56},
-    {27, 20, 39, 8, 14},
+static const unsigned int rhomatrix[5][5] = {
+    {0,   1, 62, 28, 27},
+    {36, 44,  6, 55, 20},
+    {3,  10, 43, 25, 39},
+    {41, 45, 15, 21,  8},
+    {18,  2, 61, 56, 14}
 };
 
 static const uint64_t rndc[24] = {
@@ -120,9 +120,9 @@ int sha3_256(FILE *file, char *out, size_t size) {
     // NOTE: bits in bytes must be in LSB order
     buff[bytes_read] = 0b00000110;
     bytes_read++;
-    memset(buff, 0, sizeof(buff) - bytes_read);
+    memset(buff + bytes_read, 0, sizeof(buff) - bytes_read);
     bytes_read += sizeof(buff) - bytes_read;
-    buff[bytes_read - 1] |= 0b1000000; 
+    buff[bytes_read - 1] |= 0b10000000; 
 
     int res = sponge_construct_absorb(sponge, buff, bytes_read);      
     if (res != SPONGE_OK) {
