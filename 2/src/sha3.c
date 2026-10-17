@@ -41,6 +41,10 @@ static int sha3_sponge_squeeze(sha3_sponge_t *sponge, char *buf, size_t size);
 static void sha3_sponge_permutate(sha3_sponge_t *sponge);
 
 static inline uint64_t rotl64(uint64_t x, uint64_t n) {
+    if (n == 0) {
+        return x;
+    }
+
     // Get last n bits of x
     uint64_t last = x >> (64 - n);
 
