@@ -1,4 +1,4 @@
-#include "sponge.h"
+#include "sha3.h"
 
 int main() {
     return 0;

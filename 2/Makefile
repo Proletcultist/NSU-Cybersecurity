@@ -8,7 +8,7 @@ CC = clang
 CC_FLAGS = -Wall -Wextra
 DEP_FLAGS = -MT $@ -MMD -MF $(DEPS_DIR)/$*.d
 
-SOURCES = main.c sponge.c
+SOURCES = main.c sponge.c sha3.c
 
 $(BUILD_DIR)/main: $(patsubst %.c, $(OBJECTS_DIR)/%.o, $(SOURCES))
 	mkdir -p $(BUILD_DIR)

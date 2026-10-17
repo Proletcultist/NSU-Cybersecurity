@@ -32,7 +32,7 @@ int sponge_construct_absorb(sponge_construct_t *sponge, char *data, size_t size)
     int res = sponge->permutator(sponge->data, sponge->bitrate + sponge->capacity);
 
     if (res != 0) {
-        return ret;
+        return SPONGE_PERMUTATOR_FAULT;
     }
 
     return SPONGE_OK;
@@ -48,7 +48,7 @@ int sponge_construct_squeeze(sponge_construct_t *sponge, char *buf, size_t size)
     int res = sponge->permutator(sponge->data, sponge->bitrate + sponge->capacity);
     
     if (res != 0) {
-        return ret;
+        return SPONGE_PERMUTATOR_FAULT;
     }
 
     return SPONGE_OK;

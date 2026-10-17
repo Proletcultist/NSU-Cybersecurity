@@ -4,6 +4,7 @@
 
 #define SPONGE_OK 0
 #define SPONGE_WRONG_SIZE 1
+#define SPONGE_PERMUTATOR_FAULT 2
 
 typedef int (*sponge_permutator_t)(char *data, size_t size);
 
