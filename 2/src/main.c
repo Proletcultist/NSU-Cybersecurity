@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
     }
 
     for (size_t i = 0; i < sizeof(out); i++) {
-        printf("%02X", (unsigned char) out[i]);
+        printf("%02x", (unsigned char) out[i]);
     }
     printf("\n");
 

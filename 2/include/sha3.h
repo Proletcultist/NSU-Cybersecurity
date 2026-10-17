@@ -3,9 +3,11 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#define SHA3_OK 0
-#define SHA3_WRONG_SIZE 1
-#define SHA3_IO_ERROR 2
-#define SHA3_INTERNAL_FAULT 3
+typedef enum sha3_result {
+    SHA3_OK,
+    SHA3_WRONG_SIZE,
+    SHA3_IO_ERROR,
+    SHA3_INTERNAL_FAULT
+} sha3_result_t;
 
-int sha3_256_hashfile(FILE *file, char *buff, size_t size);
+sha3_result_t sha3_256_hashfile(FILE *file, char *buff, size_t size);

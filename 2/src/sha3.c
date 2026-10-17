@@ -35,9 +35,9 @@ static const uint64_t rndc[24] = {
 };
 
 static inline uint64_t rotl64(uint64_t x, uint64_t n);
-static int sha3_sponge_construct(sha3_sponge_t *sponge, size_t bitrate, size_t capacity);
-static int sha3_sponge_absorb(sha3_sponge_t *sponge, char *data, size_t size);
-static int sha3_sponge_squeeze(sha3_sponge_t *sponge, char *buf, size_t size);
+static sha3_result_t sha3_sponge_construct(sha3_sponge_t *sponge, size_t bitrate, size_t capacity);
+static sha3_result_t sha3_sponge_absorb(sha3_sponge_t *sponge, char *data, size_t size);
+static sha3_result_t sha3_sponge_squeeze(sha3_sponge_t *sponge, char *buf, size_t size);
 static void sha3_sponge_permutate(sha3_sponge_t *sponge);
 
 static inline uint64_t rotl64(uint64_t x, uint64_t n) {
@@ -53,7 +53,7 @@ static inline uint64_t rotl64(uint64_t x, uint64_t n) {
     return (x << n) | last;
 }
 
-static int sha3_sponge_construct(sha3_sponge_t *sponge, size_t bitrate, size_t capacity) {
+static sha3_result_t sha3_sponge_construct(sha3_sponge_t *sponge, size_t bitrate, size_t capacity) {
     if (bitrate + capacity != sizeof(sponge->state)) {
         return SHA3_WRONG_SIZE;
     }
@@ -67,7 +67,7 @@ static int sha3_sponge_construct(sha3_sponge_t *sponge, size_t bitrate, size_t c
     return SHA3_OK;
 }
 
-static int sha3_sponge_absorb(sha3_sponge_t *sponge, char *data, size_t size) {
+static sha3_result_t sha3_sponge_absorb(sha3_sponge_t *sponge, char *data, size_t size) {
     if (size != sponge->bitrate) {
         return SHA3_WRONG_SIZE;
     }
@@ -82,7 +82,7 @@ static int sha3_sponge_absorb(sha3_sponge_t *sponge, char *data, size_t size) {
     return SHA3_OK;
 }
 
-static int sha3_sponge_squeeze(sha3_sponge_t *sponge, char *buf, size_t size) {
+static sha3_result_t sha3_sponge_squeeze(sha3_sponge_t *sponge, char *buf, size_t size) {
     if (size != sponge->bitrate) {
         return SHA3_WRONG_SIZE;
     }
@@ -130,7 +130,7 @@ static void sha3_sponge_permutate(sha3_sponge_t *sponge) {
     }
 }
 
-int sha3_256_hashfile(FILE *file, char *out, size_t size) {
+sha3_result_t sha3_256_hashfile(FILE *file, char *out, size_t size) {
     if (size != 256 / 8) {
         return SHA3_WRONG_SIZE;
     }
@@ -142,7 +142,7 @@ int sha3_256_hashfile(FILE *file, char *out, size_t size) {
     sha3_sponge_t sponge;
     int res = sha3_sponge_construct(
                         &sponge,
-        /*bitrate*/     1088 / 8,
+        /*bitrate*/     sizeof(buff),
         /*capacity*/    512 / 8
     );
     if (res != SHA3_OK) {
@@ -165,7 +165,8 @@ int sha3_256_hashfile(FILE *file, char *out, size_t size) {
     }
 
     // Add domain separator bits (01) and start of padding pattern (10*)
-    // as next byte, and fill remaining bytes with pattern (0*1)
+    // as next byte of last, non-full block. 
+    // Fill remaining bytes with pattern (0*1)
     // NOTE: bits in bytes must be in LSB order
     buff[bytes_read] = 0b00000110;
     bytes_read++;
