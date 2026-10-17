@@ -3,9 +3,13 @@
 #include <stdint.h>
 #include <string.h>
 #include "sha3.h"
-#include "sponge.h"
 
 #define MODULO(x, n) (((x) % (n) + (n)) % (n))
+
+typedef struct sha3_sponge {
+    size_t bitrate, capacity;
+    uint64_t state[5][5];
+} sha3_sponge_t;
 
 static const unsigned int rhomatrix[5][5] = {
     {0,   1, 62, 28, 27},
@@ -30,6 +34,12 @@ static const uint64_t rndc[24] = {
     0x0000000080000001ULL, 0x8000000080008008ULL
 };
 
+static inline uint64_t rotl64(uint64_t x, uint64_t n);
+static int sha3_sponge_construct(sha3_sponge_t *sponge, size_t bitrate, size_t capacity);
+static int sha3_sponge_absorb(sha3_sponge_t *sponge, char *data, size_t size);
+static int sha3_sponge_squeeze(sha3_sponge_t *sponge, char *buf, size_t size);
+static void sha3_sponge_permutate(sha3_sponge_t *sponge);
+
 static inline uint64_t rotl64(uint64_t x, uint64_t n) {
     // Get last n bits of x
     uint64_t last = x >> (64 - n);
@@ -37,22 +47,55 @@ static inline uint64_t rotl64(uint64_t x, uint64_t n) {
     return (x << n) | last;
 }
 
-static int sha3_permutator(char *data, size_t size) {
-    // SHA3 permutation is defined for the state consisting of 5 * 5 words
-    // of size 64 bits (8 bytes)
-    if (size != 5 * 5 * 8) {
-        return SHA3_PERMUTATOR_FAULT;
+static int sha3_sponge_construct(sha3_sponge_t *sponge, size_t bitrate, size_t capacity) {
+    if (bitrate + capacity != sizeof(sponge->state)) {
+        return SHA3_WRONG_SIZE;
     }
 
-    uint64_t (*words)[5] = (uint64_t (*)[5]) data;
+    *sponge = (sha3_sponge_t) {
+        .bitrate = bitrate,
+        .capacity = capacity
+    };
+    memset(sponge->state, 0, sizeof(sponge->state));
 
+    return SHA3_OK;
+}
+
+static int sha3_sponge_absorb(sha3_sponge_t *sponge, char *data, size_t size) {
+    if (size != sponge->bitrate) {
+        return SHA3_WRONG_SIZE;
+    }
+
+    char *state = (char*) sponge->state;
+    for (size_t i = 0; i < size; i++) {
+        state[i] ^= data[i];
+    }
+
+    sha3_sponge_permutate(sponge);
+
+    return SHA3_OK;
+}
+
+static int sha3_sponge_squeeze(sha3_sponge_t *sponge, char *buf, size_t size) {
+    if (size != sponge->bitrate) {
+        return SHA3_WRONG_SIZE;
+    }
+
+    memcpy(buf, sponge->state, size);
+
+    sha3_sponge_permutate(sponge);
+
+    return SHA3_OK;
+}
+
+static void sha3_sponge_permutate(sha3_sponge_t *sponge) {
     for (int round = 0; round < 24; round++) {
         // Calculate parity for each 5-bit column,
         // so parity[i][k] = parity(words[0..4][i][k])
         uint64_t parity[5] = {0};
         for (int col = 0; col < 5; col++) {
             for (int row = 0; row < 5; row++) {
-                parity[col] ^= words[row][col];
+                parity[col] ^= sponge->state[row][col];
             }
         }
 
@@ -60,58 +103,58 @@ static int sha3_permutator(char *data, size_t size) {
         for (int row = 0; row < 5; row++) {
             for (int col = 0; col < 5; col++) {
                 // theta step: words[i][j][k] ^= parity(words[0..4][j-1][k]) ^ parity(words[0..4][j+1][k-1])
-                words[row][col] ^= parity[MODULO(col - 1, 5)] ^ rotl64(parity[MODULO(col + 1, 5)], 1);
+                sponge->state[row][col] ^= parity[MODULO(col - 1, 5)] ^ rotl64(parity[MODULO(col + 1, 5)], 1);
 
                 // rho step: bitwise left rotate by one of a triangle numbers
-                words[row][col] = rotl64(words[row][col], rhomatrix[row][col]);
+                sponge->state[row][col] = rotl64(sponge->state[row][col], rhomatrix[row][col]);
 
                 // pi step: words[3i + 2j][i] = words[i][j]
-                buff[MODULO(3 * row + 2 * col, 5)][row] = words[row][col];
+                buff[MODULO(3 * row + 2 * col, 5)][row] = sponge->state[row][col];
             }
         }
 
         // chi step: words[i][j] ^= ~words[i][j+1] & words[i][j+2]
         for (int row = 0; row < 5; row++) {
             for (int col = 0; col < 5; col++) {
-                words[row][col] = buff[row][col] ^ (~buff[row][MODULO(col + 1, 5)] & buff[row][MODULO(col + 2, 5)]);
+                sponge->state[row][col] = buff[row][col] ^ (~buff[row][MODULO(col + 1, 5)] & buff[row][MODULO(col + 2, 5)]);
             }
         }
 
-        words[0][0] ^= rndc[round];
+        sponge->state[0][0] ^= rndc[round];
     }
-    
-    return SHA3_OK;
 }
 
-int sha3_256(FILE *file, char *out, size_t size) {
+int sha3_256_hashfile(FILE *file, char *out, size_t size) {
     if (size != 256 / 8) {
         return SHA3_WRONG_SIZE;
     }
 
     // Buffer for input/output of sponge
     char buff[1088 / 8];
-    sponge_construct_t *sponge = sponge_construct_new(
-        /*bitrate*/     sizeof(buff),
-        /*capacity*/    512 / 8,
-        /*permutator*/  sha3_permutator
+
+    // Sponge initialization
+    sha3_sponge_t sponge;
+    int res = sha3_sponge_construct(
+                        &sponge,
+        /*bitrate*/     1088 / 8,
+        /*capacity*/    512 / 8
     );
-    if (sponge == NULL) {
-        return SHA3_ALLOCATION_ERROR;
+    if (res != SHA3_OK) {
+        return res;
     }
 
+    // Read full blocks from file
     size_t bytes_read = fread(buff, 1, sizeof(buff), file);
     while (bytes_read == sizeof(buff)) {
-        int res = sponge_construct_absorb(sponge, buff, bytes_read);      
-        if (res != SPONGE_OK) {
-            sponge_construct_del(sponge);
-            return SHA3_SPONGE_FAULT;
+        int res = sha3_sponge_absorb(&sponge, buff, bytes_read);      
+        if (res != SHA3_OK) {
+            return res;
         }
 
         bytes_read = fread(buff, 1, sizeof(buff), file);
     }
 
     if (ferror(file)) {
-        sponge_construct_del(sponge);
         return SHA3_IO_ERROR;
     }
 
@@ -124,15 +167,20 @@ int sha3_256(FILE *file, char *out, size_t size) {
     bytes_read += sizeof(buff) - bytes_read;
     buff[bytes_read - 1] |= 0b10000000; 
 
-    int res = sponge_construct_absorb(sponge, buff, bytes_read);      
-    if (res != SPONGE_OK) {
-        sponge_construct_del(sponge);
-        return SHA3_SPONGE_FAULT;
+    // Absorb last block
+    res = sha3_sponge_absorb(&sponge, buff, bytes_read);      
+    if (res != SHA3_OK) {
+        return res;
     }
 
-    sponge_construct_squeeze(sponge, buff, sizeof(buff));
+    // Squeeze one block from sponge
+    res = sha3_sponge_squeeze(&sponge, buff, sizeof(buff));
+    if (res != SHA3_OK) {
+        return res;
+    }
+
+    // Output first 256 bits
     memcpy(out, buff, size);
 
-    sponge_construct_del(sponge);
     return SHA3_OK;
 }

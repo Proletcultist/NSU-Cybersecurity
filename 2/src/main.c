@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
     }
 
     char out[256 / 8];
-    int res = sha3_256(file, out, sizeof(out));
+    int res = sha3_256_hashfile(file, out, sizeof(out));
     fclose(file);
 
     if (res != SHA3_OK) {
