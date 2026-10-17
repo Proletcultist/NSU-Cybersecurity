@@ -146,7 +146,7 @@ sha3_result_t sha3_256_hashfile(FILE *file, char *out, size_t size) {
         /*capacity*/    512 / 8
     );
     if (res != SHA3_OK) {
-        return SHA3_INTERNAL_FAULT;
+        return SHA3_INTERNAL_ERROR;
     }
 
     // Read full blocks from file
@@ -154,7 +154,7 @@ sha3_result_t sha3_256_hashfile(FILE *file, char *out, size_t size) {
     while (bytes_read == sizeof(buff)) {
         int res = sha3_sponge_absorb(&sponge, buff, bytes_read);      
         if (res != SHA3_OK) {
-            return SHA3_INTERNAL_FAULT;
+            return SHA3_INTERNAL_ERROR;
         }
 
         bytes_read = fread(buff, 1, sizeof(buff), file);
@@ -177,13 +177,13 @@ sha3_result_t sha3_256_hashfile(FILE *file, char *out, size_t size) {
     // Absorb last block
     res = sha3_sponge_absorb(&sponge, buff, bytes_read);      
     if (res != SHA3_OK) {
-        return SHA3_INTERNAL_FAULT;
+        return SHA3_INTERNAL_ERROR;
     }
 
     // Squeeze one block from sponge
     res = sha3_sponge_squeeze(&sponge, buff, sizeof(buff));
     if (res != SHA3_OK) {
-        return SHA3_INTERNAL_FAULT;
+        return SHA3_INTERNAL_ERROR;
     }
 
     // Output first 256 bits

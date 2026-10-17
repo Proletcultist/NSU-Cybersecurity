@@ -17,10 +17,16 @@ int main(int argc, char **argv) {
     int res = sha3_256_hashfile(file, out, sizeof(out));
     fclose(file);
 
-    if (res != SHA3_OK) {
-        // TODO: Handle error
-        fprintf(stderr, "error\n");
-        return -1;
+    switch (res) {
+        case SHA3_OK:
+            break;
+        case SHA3_IO_ERROR:
+            perror("I/O error");
+            return -1;
+        case SHA3_WRONG_SIZE:
+        case SHA3_INTERNAL_ERROR:
+            fprintf(stderr, "Unexpected internal error\n");
+            return -1;
     }
 
     for (size_t i = 0; i < sizeof(out); i++) {
