@@ -4,6 +4,9 @@
 
 sponge_construct_t* sponge_construct_new(size_t bitrate, size_t capacity, sponge_permutator_t permutator) {
     sponge_construct_t *ret = malloc(sizeof(sponge_construct_t) + bitrate + capacity);
+    if (ret == NULL) {
+        return NULL;
+    }
 
     *ret = (sponge_construct_t) {
         .bitrate = bitrate,
@@ -30,7 +33,6 @@ int sponge_construct_absorb(sponge_construct_t *sponge, char *data, size_t size)
     }
 
     int res = sponge->permutator(sponge->data, sponge->bitrate + sponge->capacity);
-
     if (res != 0) {
         return SPONGE_PERMUTATOR_FAULT;
     }
@@ -46,7 +48,6 @@ int sponge_construct_squeeze(sponge_construct_t *sponge, char *buf, size_t size)
     memcpy(buf, sponge->data, size);
 
     int res = sponge->permutator(sponge->data, sponge->bitrate + sponge->capacity);
-    
     if (res != 0) {
         return SPONGE_PERMUTATOR_FAULT;
     }

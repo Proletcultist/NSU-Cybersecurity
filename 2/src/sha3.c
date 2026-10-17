@@ -16,18 +16,18 @@ static const uint64_t rhomatrix[5][5] = {
 };
 
 static const uint64_t rndc[24] = {
-    0x0000000000000001, 0x0000000000008082,
-    0x800000000000808a, 0x8000000080008000,
-    0x000000000000808b, 0x0000000080000001,
-    0x8000000080008081, 0x8000000000008009,
-    0x000000000000008a, 0x0000000000000088,
-    0x0000000080008009, 0x000000008000000a,
-    0x000000008000808b, 0x800000000000008b,
-    0x8000000000008089, 0x8000000000008003,
-    0x8000000000008002, 0x8000000000000080,
-    0x000000000000800a, 0x800000008000000a,
-    0x8000000080008081, 0x8000000000008080,
-    0x0000000080000001, 0x8000000080008008
+    0x0000000000000001ULL, 0x0000000000008082ULL,
+    0x800000000000808aULL, 0x8000000080008000ULL,
+    0x000000000000808bULL, 0x0000000080000001ULL,
+    0x8000000080008081ULL, 0x8000000000008009ULL,
+    0x000000000000008aULL, 0x0000000000000088ULL,
+    0x0000000080008009ULL, 0x000000008000000aULL,
+    0x000000008000808bULL, 0x800000000000008bULL,
+    0x8000000000008089ULL, 0x8000000000008003ULL,
+    0x8000000000008002ULL, 0x8000000000000080ULL,
+    0x000000000000800aULL, 0x800000008000000aULL,
+    0x8000000080008081ULL, 0x8000000000008080ULL,
+    0x0000000080000001ULL, 0x8000000080008008ULL
 };
 
 static inline uint64_t rotl64(uint64_t x, uint64_t n) {
@@ -69,12 +69,11 @@ static int sha3_permutator(char *data, size_t size) {
                 buff[MODULO(3 * row + 2 * col, 5)][row] = words[row][col];
             }
         }
-        memcpy(words, buff, sizeof(buff));
 
         // chi step: words[i][j] ^= ~words[i][j+1] & words[i][j+2]
         for (int row = 0; row < 5; row++) {
             for (int col = 0; col < 5; col++) {
-                words[row][col] ^= ~words[row][MODULO(col + 1, 5)] & words[row][MODULO(col + 2, 5)];
+                words[row][col] = buff[row][col] ^ (~buff[row][MODULO(col + 1, 5)] & buff[row][MODULO(col + 2, 5)]);
             }
         }
 
@@ -96,6 +95,9 @@ int sha3_256(FILE *file, char *out, size_t size) {
         /*capacity*/    512 / 8,
         /*permutator*/  sha3_permutator
     );
+    if (sponge == NULL) {
+        return SHA3_ALLOCATION_ERROR;
+    }
 
     size_t bytes_read = fread(buff, 1, sizeof(buff), file);
     while (bytes_read == sizeof(buff)) {
