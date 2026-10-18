@@ -11,6 +11,7 @@ typedef struct sha3_sponge {
     uint64_t state[5][5];
 } sha3_sponge_t;
 
+// Precalculated shifts for rho step (triangular numbers in correct order, modulo 64)
 static const unsigned int rhomatrix[5][5] = {
     {0,   1, 62, 28, 27},
     {36, 44,  6, 55, 20},
@@ -19,6 +20,7 @@ static const unsigned int rhomatrix[5][5] = {
     {18,  2, 61, 56, 14}
 };
 
+// Round constants for ioata step for every of 24 rounds
 static const uint64_t rndc[24] = {
     0x0000000000000001ULL, 0x0000000000008082ULL,
     0x800000000000808aULL, 0x8000000080008000ULL,
@@ -126,6 +128,7 @@ static void sha3_sponge_permutate(sha3_sponge_t *sponge) {
             }
         }
 
+        // iota step: xor with round constant of this round
         sponge->state[0][0] ^= rndc[round];
     }
 }
