@@ -23,3 +23,11 @@ kuznechik_res_t kuznechik_encrypt(
     const uint8_t round_keys[keys_amount][block_size],
     uint8_t res[block_size]
 );
+
+kuznechik_res_t kuznechik_decrypt(
+    size_t block_size,
+    size_t keys_amount,
+    const uint8_t block[block_size],
+    const uint8_t round_keys[keys_amount][block_size],
+    uint8_t res[block_size]
+);

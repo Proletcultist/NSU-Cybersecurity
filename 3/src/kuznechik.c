@@ -211,7 +211,7 @@ static kuznechik_res_t kuznechik_R_reverse(
     res[size - 1] = old_a15;
 
     uint8_t new_a0 = 0;
-    kuznechik_res_t kres = kuznechik_l(size, block, &new_a0);
+    kuznechik_res_t kres = kuznechik_l(size, res, &new_a0);
     if (kres != KUZNECHIK_OK) {
         return kres;
     }
@@ -333,7 +333,7 @@ kuznechik_res_t kuznechik_encrypt(
     memcpy(res, block, block_size);
 
     kuznechik_res_t kres;
-    for (int i = 0; i < 9; i ++) {
+    for (int i = 0; i < 9; i++) {
         kuznechik_X(block_size, res, round_keys[i], res);
         kuznechik_S(block_size, res, res);
         kres = kuznechik_L(block_size, res, res);
@@ -343,6 +343,36 @@ kuznechik_res_t kuznechik_encrypt(
     }
 
     kuznechik_X(block_size, res, round_keys[9], res);
+
+    return KUZNECHIK_OK;
+}
+
+kuznechik_res_t kuznechik_decrypt(
+    size_t block_size,
+    size_t keys_amount,
+    const uint8_t block[block_size],
+    const uint8_t round_keys[keys_amount][block_size],
+    uint8_t res[block_size]
+) {
+    if (keys_amount != 10 || block_size != 16) {
+        return KUZNECHIK_WRONG_SIZE;
+    }
+
+    memcpy(res, block, block_size);
+
+    kuznechik_res_t kres;
+    for (int i = 0; i < 9; i++) {
+        kuznechik_X(block_size, res, round_keys[9 - i], res);
+
+        kres = kuznechik_L_reverse(block_size, res, res);
+        if (kres != KUZNECHIK_OK) {
+            return kres;
+        }
+
+        kuznechik_S_reverse(block_size, res, res);
+    }
+
+    kuznechik_X(block_size, res, round_keys[0], res);
 
     return KUZNECHIK_OK;
 }

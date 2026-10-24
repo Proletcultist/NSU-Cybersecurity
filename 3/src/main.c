@@ -25,20 +25,25 @@ int main() {
         key,
         round_keys
     );
-    for (size_t i = 0; i < 10; i++) {
-        printf("K%d: ", i + 1);
-        for (size_t j = 0; j < 16; j++) {
-            printf("%02x", round_keys[i][j]);
-        }
-        printf("\n");
-    }
-
     kuznechik_encrypt(
         sizeof(a),
         sizeof(round_keys) / sizeof(round_keys[0]),
         a, round_keys, out
     );
 
+    printf("Encrypted: ");
+    for (size_t i = 0; i < sizeof(out); i++) {
+        printf("%02x", out[i]);
+    }
+    printf("\n");
+
+    kuznechik_decrypt(
+        sizeof(out),
+        sizeof(round_keys) / sizeof(round_keys[0]),
+        out, round_keys, out
+    );
+
+    printf("Decrypted: ");
     for (size_t i = 0; i < sizeof(out); i++) {
         printf("%02x", out[i]);
     }
