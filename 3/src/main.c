@@ -15,9 +15,29 @@ int main() {
         0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef
     };
 
+    uint8_t round_keys[10][16];
     uint8_t out[16];
 
-    kuznechik_encrypt(sizeof(a), sizeof(key), a, key, out);
+    kuznechik_calculate_round_keys(
+        sizeof(key),
+        sizeof(round_keys) / sizeof(round_keys[0]),
+        sizeof(round_keys[0]),
+        key,
+        round_keys
+    );
+    for (size_t i = 0; i < 10; i++) {
+        printf("K%d: ", i + 1);
+        for (size_t j = 0; j < 16; j++) {
+            printf("%02x", round_keys[i][j]);
+        }
+        printf("\n");
+    }
+
+    kuznechik_encrypt(
+        sizeof(a),
+        sizeof(round_keys) / sizeof(round_keys[0]),
+        a, round_keys, out
+    );
 
     for (size_t i = 0; i < sizeof(out); i++) {
         printf("%02x", out[i]);
