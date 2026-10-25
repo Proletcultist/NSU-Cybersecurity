@@ -6,6 +6,7 @@
 
 #define GF_MOD 0xc3 // Polynomial x^8+x^7+x^6+x+1 without x^8 to use as mod in GF(2^8) field ops
 
+// Precalculated round constants for round keys calculations
 static const uint8_t round_consts[32][16] = {
     {0x6e, 0xa2, 0x76, 0x72, 0x6c, 0x48, 0x7a, 0xb8,
     0x5d, 0x27, 0xbd, 0x10, 0xdd, 0x84, 0x94, 0x01},
@@ -73,6 +74,7 @@ static const uint8_t round_consts[32][16] = {
     0xf1, 0x6a, 0xc1, 0x45, 0x9c, 0xed, 0xa8, 0x20}
 };
 
+// l(block) -> res
 static kuznechik_res_t kuznechik_l(
     size_t block_size, const uint8_t block[restrict block_size],
     uint8_t *restrict res
@@ -82,7 +84,7 @@ static kuznechik_res_t kuznechik_l(
         1, 192, 194, 16, 133, 32, 148, 1
     };
 
-    if (block_size != 16) {
+    if (16 != block_size) {
         return KUZNECHIK_WRONG_SIZE;
     }
 
@@ -109,7 +111,10 @@ static void kuznechik_X(
     }
 }
 
-// S kuznechik transformation
+// S(block) -> res
+// All arrays must not overlap partially, they can only:
+// 1. Not overlap at all
+// 2. Be same arrays
 static void kuznechik_S(
     size_t size,
     const uint8_t block[size], 
@@ -147,6 +152,10 @@ static void kuznechik_S(
     }
 }
 
+// S^(-1)(block) -> res
+// All arrays must not overlap partially, they can only:
+// 1. Not overlap at all
+// 2. Be same arrays
 static void kuznechik_S_reverse(
     size_t size,
     const uint8_t block[size], 
@@ -184,35 +193,49 @@ static void kuznechik_S_reverse(
     }
 }
 
+// R(block) -> res
+// All arrays must not overlap partially, they can only:
+// 1. Not overlap at all
+// 2. Be same arrays
 static kuznechik_res_t kuznechik_R(
     size_t size,
     const uint8_t block[size], 
     uint8_t res[size]
 ) {
+    // Calculate new a15 (res[0])
     uint8_t new_a15 = 0;
     kuznechik_res_t kres = kuznechik_l(size, block, &new_a15);
-    if (kres != KUZNECHIK_OK) {
+    if (KUZNECHIK_OK != kres) {
         return kres;
     }
 
+    // Shift block right and place result to res
     memmove(res + 1, block, size - 1);
-    *res = new_a15;
+
+    // Write new a15 to res[0]
+    res[0] = new_a15;
 
     return KUZNECHIK_OK;
 }
 
+// R^(-1)(block) -> res
+// All arrays must not overlap partially, they can only:
+// 1. Not overlap at all
+// 2. Be same arrays
 static kuznechik_res_t kuznechik_R_reverse(
     size_t size,
     const uint8_t block[size], 
     uint8_t res[size]
 ) {
+    // Shift block left circulary
     uint8_t old_a15 = block[0];
     memmove(res, block + 1, size - 1);
     res[size - 1] = old_a15;
 
+    // Calculate new a0 (res[size - 1])
     uint8_t new_a0 = 0;
     kuznechik_res_t kres = kuznechik_l(size, res, &new_a0);
-    if (kres != KUZNECHIK_OK) {
+    if (KUZNECHIK_OK != kres) {
         return kres;
     }
 
@@ -221,40 +244,54 @@ static kuznechik_res_t kuznechik_R_reverse(
     return KUZNECHIK_OK;
 }
 
+// L(block) -> res
+// All arrays must not overlap partially, they can only:
+// 1. Not overlap at all
+// 2. Be same arrays
 static kuznechik_res_t kuznechik_L(
     size_t size,
     const uint8_t block[size],
     uint8_t res[size]
 ) {
+    // Apply R 16 times
     kuznechik_res_t kres = kuznechik_R(size, block, res);
-    for (int i = 0; i < 15 && kres == KUZNECHIK_OK; i++) {
+    for (int i = 0; i < 15 && KUZNECHIK_OK == kres; i++) {
         kres = kuznechik_R(size, res, res);
     }
 
     return kres;
 }
 
+// L^(-1)(block) -> res
+// All arrays must not overlap partially, they can only:
+// 1. Not overlap at all
+// 2. Be same arrays
 static kuznechik_res_t kuznechik_L_reverse(
     size_t size,
     const uint8_t block[size],
     uint8_t res[size]
 ) {
+    // Apply R^(-1) 16 times
     kuznechik_res_t kres = kuznechik_R_reverse(size, block, res);
-    for (int i = 0; i < 15 && kres == KUZNECHIK_OK; i++) {
+    for (int i = 0; i < 15 && KUZNECHIK_OK == kres; i++) {
         kres = kuznechik_R_reverse(size, res, res);
     }
 
     return kres;
 }
 
+// F(key, round_const) -> res
+// Key and res must not overlap partially, they can only:
+// 1. Not overlap at all
+// 2. Be same arrays
 static kuznechik_res_t kuznechik_F(
     size_t key_size,
     size_t round_const_size,
     const uint8_t key[key_size],
-    const uint8_t round_const[round_const_size],
+    const uint8_t round_const[restrict round_const_size],
     uint8_t res[key_size]
 ) {
-    if (round_const_size != 16 || key_size != 32) {
+    if (16 != round_const_size || 32 != key_size) {
         return KUZNECHIK_WRONG_SIZE;
     }
 
@@ -273,7 +310,7 @@ static kuznechik_res_t kuznechik_F(
     kuznechik_X(round_const_size, key_lo, round_const, res_lo);
     kuznechik_S(round_const_size, res_lo, res_lo);
     kres = kuznechik_L(round_const_size, res_lo, res_lo);
-    if (kres != KUZNECHIK_OK) {
+    if (KUZNECHIK_OK != kres) {
         return kres;
     }
 
@@ -283,6 +320,7 @@ static kuznechik_res_t kuznechik_F(
     return KUZNECHIK_OK;
 }
 
+// Calculate round keys from master key
 kuznechik_res_t kuznechik_calculate_round_keys(
     size_t master_key_size,
     size_t keys_amount,
@@ -290,7 +328,7 @@ kuznechik_res_t kuznechik_calculate_round_keys(
     const uint8_t master_key[restrict master_key_size],
     uint8_t res[restrict keys_amount][round_key_size]
 ) {
-    if (keys_amount != 10 || master_key_size != 32 || round_key_size != 16) {
+    if (10 != keys_amount || 32 != master_key_size || 16 != round_key_size) {
         return KUZNECHIK_WRONG_SIZE;
     }
 
@@ -310,7 +348,7 @@ kuznechik_res_t kuznechik_calculate_round_keys(
                 (uint8_t*) &res[i]
             );
 
-            if (kres != KUZNECHIK_OK) {
+            if (KUZNECHIK_OK != kres) {
                 return kres;
             }
         }
@@ -319,14 +357,18 @@ kuznechik_res_t kuznechik_calculate_round_keys(
     return KUZNECHIK_OK;
 }
 
+// Encrypts block with round_keys and writes result to res
+// Block and res must not overlap partially, they can only:
+// 1. Not overlap at all
+// 2. Be same arrays
 kuznechik_res_t kuznechik_encrypt(
     size_t block_size,
     size_t keys_amount,
     const uint8_t block[block_size],
-    const uint8_t round_keys[keys_amount][block_size],
+    const uint8_t round_keys[restrict keys_amount][block_size],
     uint8_t res[block_size]
 ) {
-    if (keys_amount != 10 || block_size != 16) {
+    if (10 != keys_amount || 16 != block_size) {
         return KUZNECHIK_WRONG_SIZE;
     }
 
@@ -337,7 +379,7 @@ kuznechik_res_t kuznechik_encrypt(
         kuznechik_X(block_size, res, round_keys[i], res);
         kuznechik_S(block_size, res, res);
         kres = kuznechik_L(block_size, res, res);
-        if (kres != KUZNECHIK_OK) {
+        if (KUZNECHIK_OK != kres) {
             return kres;
         }
     }
@@ -347,14 +389,18 @@ kuznechik_res_t kuznechik_encrypt(
     return KUZNECHIK_OK;
 }
 
+// Decrypts block with round_keys and writes result to res
+// Block and res must not overlap partially, they can only:
+// 1. Not overlap at all
+// 2. Be same arrays
 kuznechik_res_t kuznechik_decrypt(
     size_t block_size,
     size_t keys_amount,
     const uint8_t block[block_size],
-    const uint8_t round_keys[keys_amount][block_size],
+    const uint8_t round_keys[restrict keys_amount][block_size],
     uint8_t res[block_size]
 ) {
-    if (keys_amount != 10 || block_size != 16) {
+    if (10 != keys_amount || 16 != block_size) {
         return KUZNECHIK_WRONG_SIZE;
     }
 
@@ -365,7 +411,7 @@ kuznechik_res_t kuznechik_decrypt(
         kuznechik_X(block_size, res, round_keys[9 - i], res);
 
         kres = kuznechik_L_reverse(block_size, res, res);
-        if (kres != KUZNECHIK_OK) {
+        if (KUZNECHIK_OK != kres) {
             return kres;
         }
 
