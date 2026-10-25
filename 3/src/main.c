@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <getopt.h>
 #include <sodium.h>
+#include <unistd.h>
 #include "kuznechik.h"
 
 #define IS_HEX(c) (isdigit(c) || ((c) >= 'a' && (c) <= 'f'))
@@ -238,14 +239,26 @@ int main(int argc, char **argv) {
     print_hex(stderr, sizeof(key), key);
     fprintf(stderr, "\n");
 
-    struct stat statbuf;
-    if (stat(input_path, &statbuf)) {
+    struct stat input_statbuf;
+    if (stat(input_path, &input_statbuf)) {
         perror("Error: Failed to stat input file");
         return -1;
     }
-    if (!S_ISREG(statbuf.st_mode)) {
+    if (!S_ISREG(input_statbuf.st_mode)) {
         fprintf(stderr, "Error: Cannot read input from non-regular file\n");
         return -1;
+    }
+
+    if (NULL != output_path && access(output_path, F_OK) == 0) {
+        struct stat output_statbuf;
+        if (stat(output_path, &output_statbuf)) {
+            perror("Error: Failed to stat output file");
+            return -1;
+        }
+        if (input_statbuf.st_ino == output_statbuf.st_ino) {
+            fprintf(stderr, "Cannot use the same file for input and output\n");
+            return 01;
+        }
     }
 
     FILE *input = fopen(input_path, "rb");
@@ -264,7 +277,7 @@ int main(int argc, char **argv) {
         action,
         input,
         output,
-        statbuf.st_size,
+        input_statbuf.st_size,
         sizeof(key),
         key
     );
