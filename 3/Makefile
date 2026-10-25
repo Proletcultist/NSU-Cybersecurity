@@ -8,7 +8,7 @@ TEST_DIR = test
 TEST_SAMPLES_DIR = $(TEST_DIR)/samples
 
 CC = clang
-CC_FLAGS = -Wall -Wextra -O0
+CC_FLAGS = -Wall -Wextra -O3
 DEP_FLAGS = -MT $@ -MMD -MF $(DEPS_DIR)/$*.d
 
 SOURCES = main.c gf256.c kuznechik.c
